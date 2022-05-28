@@ -1,0 +1,79 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 设置盒子之间的间距 */
+.inputBox,
+.btns {
+  position: relative;
+  margin-top: 46px;
+}
+
+input[type=checkbox] {
+  width: 20px;
+}
+
+/* 按钮 */
+.btns {
+  display: -webkit-flex;
+  display: -moz-flex;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 50px;
+  width: 300px;
+}
+
+.btns button {
+  width: 100px;
+  height: 40px;
+  outline: medium;
+  border: 1px #3b78dd solid;
+  font-size: 20px;
+  border-radius: 7.5px;
+}
+
+button:nth-child(1) {
+  color: #fff;
+  background-color: #3b78dd;
+}
+
+button:nth-child(1):hover {
+  background-color: #265fd7;
+  border-color: #265fd7;
+}
+
+button:nth-child(2) {
+  border: 1px #000 solid;
+  background-color: #fff;
+}
+
+button:nth-child(2):hover {
+  background-color: #bdbdbd;
+}
+
+
+/* 密码强度 */
+#pwd_strengthBox {
+  margin: 10px;
+  transform: translateX(-50px);
+  width: 240px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #808080;
+}
+
+#pwd_strength {
+  height: 100%;
+  border-radius: 5px;
+  transition: all .4s;
+}
+
+/* 七天免登录按钮 */
+#freeLogin {
+  width: initial;
+  height: initial;
+  margin-right: 10px;
+}
