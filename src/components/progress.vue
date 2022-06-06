@@ -8,14 +8,6 @@ const showLast = ref(true);
   <div class="progress">
     文件上传
     <ul>
-      <li key="12314">
-        <el-progress
-          :text-inside="true"
-          :stroke-width="26"
-          :percentage="50"
-          :status="50 === 100 ? 'success' : undefined"
-        ></el-progress>
-      </li>
       <li v-for="i in uploadProgresses" :key="i.id">
         {{ i.name }}
         <el-progress

@@ -82,7 +82,8 @@ body {
     font-size: 16px;
   }
   .all_bg {
-    background-image: url(/Netdisk/wife/getPC);
+    background-image: url(https://go.fuyeor.com/ran/pic);
+    /* background-image: url(/Netdisk/wife/getPC); */
   }
 }
 
