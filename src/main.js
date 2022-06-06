@@ -6,7 +6,7 @@ const app = createApp(App)
 app.provide('searchMode', ref(false))
 app.provide('pathnow', reactive([]))
 app.provide('axios', axios)
-axios.defaults.baseURL = 'http://47.96.253.99/Netdisk'
+axios.defaults.baseURL = '/Netdisk'
 app.use(router)
 window.router = router
 axios.defaults.headers.common['Authorization'] = localStorage.getItem("Itoken");

@@ -260,13 +260,13 @@ function checkEmail() {
 }
 function beforeRegister() {
   let checkall =
-    data.checkUsername() &&
-    data.checkPassword() &&
-    data.checkPasswordConfirm() &&
-    data.checkNickname() &&
-    data.checkEmail();
+    checkUsername() &&
+    checkPassword() &&
+    checkPasswordConfirm() &&
+    checkNickname() &&
+    checkEmail();
   if (checkall) {
-    data.toRegister();
+    toRegister();
   } else {
     ElMessage.warning("注册信息填写不正确，请检查相关信息");
   }
@@ -287,7 +287,7 @@ function toRegister() {
       } else if (res.data.code === 300) {
         ElMessage.warning(res.data.msg);
         console.log(res.data.msg);
-        data.checkUsername();
+        checkUsername();
       } else {
         console.error("注册请求出错：信息为：", res);
       }
