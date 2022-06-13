@@ -15,18 +15,7 @@
         v-if="pathnow.length >= 1"
         >返回上一页</a
       >
-      <el-breadcrumb separator-class="el-icon-arrow-right">
-        <el-breadcrumb-item
-          ><a href="javascript:;" @click="navlinkRender(-1)"
-            >全部文件</a
-          ></el-breadcrumb-item
-        >
-        <el-breadcrumb-item v-for="(dir, i) in pathnow" :key="`${dir}-${i}`">
-          <a href="javascript:;" @click="navlinkRender(i)">{{
-            dir
-          }}</a></el-breadcrumb-item
-        >
-      </el-breadcrumb>
+      <breadcrumb :navlinkRender="navlinkRender"></breadcrumb>
       <!-- 操作div -->
       <div class="opera_btn fileList">
         <!-- 全选按钮 -->
@@ -46,13 +35,15 @@
           type="primary"
           size="small"
           @click="toUpload"
-          :style="'display:' + (searchMode.value ? 'none' : 'inline-block')"
+          :style="
+            'margin-left:16px;display:' + (searchMode ? 'none' : 'inline-block')
+          "
           >上传<el-icon class="el-icon--right"><Upload /></el-icon
         ></el-button>
         <el-button
           type="primary"
           size="small"
-          :style="'display:' + (searchMode.value ? 'none' : 'inline-block')"
+          :style="'display:' + (searchMode ? 'none' : 'inline-block')"
           @click="showmk"
         >
           新建文件夹
@@ -73,63 +64,66 @@
           @click="deleteFilesAndFolders"
         ></el-button>
         <!-- 搜索框 -->
-        <div class="searchList" :class="searchFloat ? 'searchFloat' : ''">
-          <input
-            class="search_input"
-            type="text"
-            ref="inputSearch"
-            @focus="searchInputFocus = true"
-            @blur="searchInputFocus = false"
-            :placeholder="searchInputFocus ? '' : '搜索您的文件'"
-            @keyup.enter="tosearch"
-          />
-          <Search class="search_btn" href="javascript:;" @click="tosearch" />
-        </div>
+        <el-input
+          class="searchList"
+          type="text"
+          v-model="inputSearchText"
+          :placeholder="'搜索您的文件'"
+          @keydown.enter="toSearch"
+        >
+          <template #suffix>
+            <Search class="search_btn" href="javascript:;" @click="toSearch" />
+          </template>
+        </el-input>
+        <!-- </div> -->
       </div>
       <!-- 搜索时显示 -->
       <div
         class="opera_btn"
         :style="{
-          display: searchMode.value ? 'flex' : 'none',
+          display: searchMode ? 'flex' : 'none',
           justifyContent: 'space-around',
         }"
       >
         <span v-if="!vacuumResult()">文件/文件夹</span>
         <span v-if="!vacuumResult()">路径</span>
-        <div v-if="vacuumResult() && searchMode.value">搜索结果为空！</div>
+        <div v-if="vacuumResult() && searchMode">搜索结果为空！</div>
       </div>
       <!-- 文件展示 -->
       <el-scrollbar height="80%" max-height="400px">
         <!-- 新建文件夹 -->
-        <div class="mkdirbox" ref="mkdirbox" style="display: none">
+        <div class="mkdirbox fileList" ref="mkdirbox" style="display: none">
           <!-- <span class="input_place"></span> -->
-          <img src="../../../assets/img/folder_icon.png" />
-          <input
-            type="text"
+          <img src="@/assets/img/folder_icon.png" />
+          <el-input
             class="mkdir"
-            ref="newfoldername"
-            @keyup.enter="createnewfolder"
+            v-model="newfoldername"
+            @keyup.enter="createNewFolder"
           />
-          <a href="javascript:;" @click="createnewfolder"> √ </a>
-          <a href="javascript:;" @click="mkcancal"> x </a>
+          <a href="javascript:;">
+            <el-icon><Check @click="createNewFolder" /></el-icon>
+          </a>
+          <a href="javascript:;">
+            <el-icon><Close @click="mkdircancel" /></el-icon>
+          </a>
         </div>
-        <div v-if="vacuumResult() && !searchMode.value">
+        <div v-if="vacuumResult() && !searchMode">
           此文件夹为空，
           <a href="javascript:;" @click="showmk" style="color: -webkit-link"
             >点此</a
           >创建文件夹
         </div>
-        <div v-for="file in fileArray" :key="file.id">
+        <template v-for="file in fileArray" :key="file.id">
           <FileItem :msg="file" :changeSelected="changeSelected" />
-        </div>
+        </template>
 
-        <div v-for="folder in dirArray" :key="folder.id">
+        <template v-for="folder in dirArray" :key="folder.id">
           <FolderItem
             :msg="folder"
             :changeSelected="changeSelected"
             @jumpindir="jumpindir(folder.dirname)"
           />
-        </div>
+        </template>
       </el-scrollbar>
     </div>
   </div>
@@ -138,26 +132,36 @@
 <script setup>
 import FileItem from "./children/FileItem.vue";
 import FolderItem from "./children/FolderItem.vue";
-import { Delete, Edit, Search, Share, Upload } from "@element-plus/icons-vue";
+import breadcrumb from "./children/headcrumb.vue";
+import {
+  Delete,
+  Edit,
+  Search,
+  Share,
+  Upload,
+  Check,
+  Close,
+} from "@element-plus/icons-vue";
 import { nanoid } from "nanoid";
 import { ref, inject, onMounted, reactive, customRef } from "@vue/runtime-core";
 import { useRoute, useRouter } from "vue-router";
+// import testFun from
 const route = useRoute();
 const router = useRouter();
 const axios = inject("axios");
 const uploadProgresses = inject("uploadProgresses");
 const searchMode = inject("searchMode");
 const uploadinput = ref(null);
-const inputSearch = ref(null);
+const inputSearchText = ref("");
 const mkdirbox = ref(null);
 const progressHide = ref(false);
-let fileArray = reactive([]);
-let dirArray = reactive([]);
-let ajaxWaiting = ref(false);
-let searchFloat = ref(false);
-let searchInputFocus = ref(false);
+const fileArray = reactive([]);
+const dirArray = reactive([]);
+const ajaxWaiting = ref(false);
+const searchFloat = ref(false);
 const pathnow = inject("pathnow");
-const newfoldername = ref(null);
+const newfoldername = ref("");
+const success = ElMessage.success;
 function hasSelect() {
   return (
     fileArray.find((element) => element.selected) ||
@@ -277,31 +281,32 @@ function showmk() {
   // 展示mkdir盒子
   mkdirbox.value.style.display = "block";
 }
-function mkcancal() {
+function mkdircancel() {
   mkdirbox.value.style.display = "none";
   newfoldername.value = "";
 }
-function createnewfolder() {
-  if (newfoldername.value.value.trim() === "") {
+function createNewFolder() {
+  if (newfoldername.value.trim() === "") {
     ElMessage.warning("文件夹名不能为空！");
     return;
   }
   ElMessageBox.confirm(
-    "确定要创建文件夹" + newfoldername.value.value + "?",
+    "确定要创建文件夹" + newfoldername.value + "?",
     "创建文件夹"
   ).then(() => {
     axios
       .post("/api/mkdir", {
-        destination: "/" + pathnow.join("/") + "/" + newfoldername.value.value,
+        destination: "/" + pathnow.join("/") + "/" + newfoldername.value,
       })
       .then(() => {
         dirArray.push({
-          dirname: newfoldername.value.value,
+          dirname: newfoldername.value,
           id: nanoid(),
           selected: false,
         });
+        success(`创建文件夹${newfoldername.value}成功`);
         // 最后重新点击“取消键”
-        mkcancal();
+        mkdircancel();
       });
   });
 }
@@ -312,14 +317,14 @@ function jumpindir(dirname) {
   fileRender("/" + pathnow.join("/"));
 }
 // 跳转搜索
-function tosearch() {
-  console.log(inputSearch);
-  inputSearch.value = inputSearch.value.value.trim();
-  if (!inputSearch.value) {
+function toSearch() {
+  console.log(inputSearchText);
+  inputSearchText.value = inputSearchText.value.trim();
+  if (!inputSearchText.value) {
     ElMessage.warning("搜索内容不能为空！");
     return;
   }
-  axios.get(`/api/searchDir?name=${inputSearch.value}`).then((res) => {
+  axios.get(`/api/searchDir?name=${inputSearchText.value}`).then((res) => {
     searchMode.value = true;
     dirArray.length = 0;
     fileArray.length = 0;
@@ -339,9 +344,6 @@ function tosearch() {
         selected: false,
       });
     });
-    if (vacuumResult()) {
-      searchMode.value = false;
-    }
   });
 }
 // 下载被选择的文件/文件夹
@@ -437,6 +439,7 @@ function deleteFilesAndFolders() {
             encodeURIComponent(dir.dirname)
         )
         .then((res) => {
+          success(`删除成功`);
           console.log(res.data.msg, " @ ", dir.dirname);
           fileRender("/" + pathnow.join("/"));
         });
@@ -542,21 +545,16 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 600;
   line-height: 30px;
-  height: 30px;
-  width: 38px;
-  transform: translateX(-10px);
-}
-
-.search_btn:hover {
-  border: #666 2px;
-  border-radius: 10px;
+  height: 20px;
+  width: 20px;
+  transform: translateX(-8px);
 }
 
 .search_input {
   border: 0;
   outline: 0;
   height: 30px;
-  width: 100px;
+  width: 200px;
   padding-left: 15px;
   line-height: 30px;
   font-size: 12px;
@@ -582,7 +580,9 @@ onMounted(() => {
 }
 
 .mkdir {
-  display: inline-block;
+  /* display: inline-block; */
+  height: 1.5rem;
+  line-height: 1.5rem;
   width: 28%;
   max-width: 522.114px;
   /*超出部分隐藏*/
@@ -594,8 +594,9 @@ onMounted(() => {
 }
 
 /* 新建文件夹 */
-.mkdirbox.value {
+.mkdirbox {
   margin-left: 16px;
+  padding-left: 14px;
   height: 40px;
   line-height: 40px;
   border-bottom: #000 1px solid;
@@ -605,12 +606,6 @@ onMounted(() => {
 .mkdirbox img {
   margin: 8px 20px;
   vertical-align: top;
-}
-
-.mkdirbox::before {
-  content: "";
-  height: 40px;
-  margin-left: 28px;
 }
 
 .mkdirbox a {

@@ -5,7 +5,7 @@
     @click="changeSelected(msg.id)"
   >
     <el-checkbox @click="(e) => e.stopPropagation()" v-model="msg.selected" />
-    <img src="../../../../assets/img/folder_icon.png" v-once />
+    <img src="@/assets/img/folder_icon.png" v-once />
     <a class="folder_name" href="javascript:;" @click.stop="jumpindir">{{
       msg.dirname
     }}</a>
