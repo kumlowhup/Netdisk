@@ -286,8 +286,18 @@ function mkdircancel() {
   newfoldername.value = "";
 }
 function createNewFolder() {
-  if (newfoldername.value.trim() === "") {
-    ElMessage.warning("文件夹名不能为空！");
+  newfoldername.value = newfoldername.value.trim();
+  if (newfoldername.value === "") {
+    ElMessage.warning({ message: "文件夹名不能为空！", grouping: true });
+    return;
+  }
+  const legal = !/.*(\<|\>|\||\*|\/|\\|\?).*/.test(newfoldername.value);
+  console.log(legal);
+  if (!legal) {
+    ElMessage.error({
+      message: "文件名不能包含以下字符：<,>,|,*,?,\\,/",
+      grouping: true,
+    });
     return;
   }
   ElMessageBox.confirm(
