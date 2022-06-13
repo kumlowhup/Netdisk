@@ -7,7 +7,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/Netdisk/' : '/dev/',
+  base: process.env.NODE_ENV === 'production' ? '/' : '/dev/',
   // base: "/Netdisk/",
   build: {
     outDir: 'static'

@@ -10,7 +10,7 @@ import wschat from "../pages/wschat.vue"
 // 解决vue-router在3.0版本以上重复点菜单报错问题
 // 必须如此声明否则栈溢出
 export default createRouter({
-    history: createWebHistory(process.env.NODE_ENV === 'production' ? '/Netdisk/' : '/dev/'),
+    history: createWebHistory(process.env.NODE_ENV === 'production' ? '/' : '/dev/'),
     routes: [
         {
             path: '/',
