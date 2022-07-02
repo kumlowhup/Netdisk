@@ -44,7 +44,7 @@
           type="primary"
           size="small"
           :style="'display:' + (searchMode ? 'none' : 'inline-block')"
-          @click="showmk"
+          @click="isMKBoxShow = true"
         >
           新建文件夹
         </el-button>
@@ -65,10 +65,10 @@
         ></el-button>
         <!-- 搜索框 -->
         <el-input
-          class="searchList"
+          class="search_input"
           type="text"
           v-model="inputSearchText"
-          :placeholder="'搜索您的文件'"
+          placeholder="搜索您的文件"
           @keydown.enter="toSearch"
         >
           <template #suffix>
@@ -92,24 +92,19 @@
       <!-- 文件展示 -->
       <el-scrollbar height="80%" max-height="400px">
         <!-- 新建文件夹 -->
-        <div class="mkdirbox fileList" ref="mkdirbox" style="display: none">
-          <!-- <span class="input_place"></span> -->
-          <img src="@/assets/img/folder_icon.png" />
-          <el-input
-            class="mkdir"
-            v-model="newfoldername"
-            @keyup.enter="createNewFolder"
-          />
-          <a href="javascript:;">
-            <el-icon><Check @click="createNewFolder" /></el-icon>
-          </a>
-          <a href="javascript:;">
-            <el-icon><Close @click="mkdircancel" /></el-icon>
-          </a>
+        <div v-show="isMKBoxShow">
+          <FolderCreator
+            @cancel="() => (isMKBoxShow = false)"
+            @created="afterCreateFolder"
+          ></FolderCreator>
         </div>
+        <!-- 空白显示信息 -->
         <div v-if="vacuumResult() && !searchMode">
           此文件夹为空，
-          <a href="javascript:;" @click="showmk" style="color: -webkit-link"
+          <a
+            href="javascript:;"
+            @click="isMKBoxShow = true"
+            style="color: -webkit-link"
             >点此</a
           >创建文件夹
         </div>
@@ -133,18 +128,12 @@
 import FileItem from "./children/FileItem.vue";
 import FolderItem from "./children/FolderItem.vue";
 import breadcrumb from "./children/headcrumb.vue";
-import {
-  Delete,
-  Edit,
-  Search,
-  Share,
-  Upload,
-  Check,
-  Close,
-} from "@element-plus/icons-vue";
+import FolderCreator from "./children/FolderCreator.vue";
+import { Delete, Edit, Search, Share, Upload } from "@element-plus/icons-vue";
 import { nanoid } from "nanoid";
 import { ref, inject, onMounted, reactive, customRef } from "@vue/runtime-core";
 import { useRoute, useRouter } from "vue-router";
+import { computed } from "@vue/reactivity";
 // import testFun from
 const route = useRoute();
 const router = useRouter();
@@ -153,14 +142,16 @@ const uploadProgresses = inject("uploadProgresses");
 const searchMode = inject("searchMode");
 const uploadinput = ref(null);
 const inputSearchText = ref("");
-const mkdirbox = ref(null);
 const progressHide = ref(false);
 const fileArray = reactive([]);
 const dirArray = reactive([]);
 const ajaxWaiting = ref(false);
 const searchFloat = ref(false);
 const pathnow = inject("pathnow");
-const newfoldername = ref("");
+
+const pathString = computed(() => "/" + pathnow.join("/"));
+
+const isMKBoxShow = ref(false);
 const success = ElMessage.success;
 function hasSelect() {
   return (
@@ -223,20 +214,36 @@ function fileRender(path) {
       ajaxWaiting.value = false;
       searchMode.value = false;
       if (res.data.code !== 200) {
-        if (res.data.code === 1000) {
-          router.push("/authpage/login");
-          ElMessage.error(res.data.msg);
-        } else if (res.data.code === 300) {
-          ElMessage.error("登录权限失败");
-          console.log(res.data.msg);
-          pathnow.pop();
-          router.back();
-        } else {
-          console.log(res.data);
+        switch (res.data.code) {
+          case 1000:
+            {
+              router.push("/authpage/login");
+              ElMessage.error(res.data.msg);
+            }
+            break;
+          case 300:
+            {
+              ElMessage.error("登录权限失败");
+              console.log(res.data.msg);
+              pathnow.pop();
+              router.back();
+            }
+            break;
+          case 404: {
+            ElMessage.error("文件夹不存在!");
+            console.warn(res.data.msg);
+            if (path === "/") {
+              ElMessage.error("额 埋了");
+            } else navlinkRender(-1);
+          }
+          default: {
+            ElMessage.error(res.data.msg);
+            console.warn(res.data);
+          }
         }
         return;
       }
-      router.replace("/main?path=%2F" + encodeURIComponent(pathnow.join("/")));
+      router.replace("/main?path=" + encodeURIComponent(pathString.value));
       // 清空数组
       fileArray.length = 0;
       dirArray.length = 0;
@@ -244,14 +251,14 @@ function fileRender(path) {
       res.data.data.file.forEach((element) => {
         fileArray.push({
           filename: element,
-          id: nanoid(),
+          id: "@file" + element,
           selected: false,
         });
       });
       res.data.data.dir.forEach((element) => {
         dirArray.push({
           dirname: element,
-          id: nanoid(),
+          id: "@folder" + element,
           selected: false,
         });
       });
@@ -267,7 +274,7 @@ function navlinkRender(i) {
   let path = "/" + pathnow.slice(0, i + 1).join("/");
   fileRender(path);
   pathnow.length = i + 1;
-  router.replace("/main?path=/" + pathnow.join("/"));
+  router.replace("/main?path=/" + pathString.value);
 }
 function changeSelected(id) {
   dirArray.forEach((dir) => {
@@ -277,54 +284,12 @@ function changeSelected(id) {
     if (file.id === id) file.selected = !file.selected;
   });
 }
-function showmk() {
-  // 展示mkdir盒子
-  mkdirbox.value.style.display = "block";
-}
-function mkdircancel() {
-  mkdirbox.value.style.display = "none";
-  newfoldername.value = "";
-}
-function createNewFolder() {
-  newfoldername.value = newfoldername.value.trim();
-  if (newfoldername.value === "") {
-    ElMessage.warning({ message: "文件夹名不能为空！", grouping: true });
-    return;
-  }
-  const legal = !/.*(\<|\>|\||\*|\/|\\|\?).*/.test(newfoldername.value);
-  console.log(legal);
-  if (!legal) {
-    ElMessage.error({
-      message: "文件名不能包含以下字符：<,>,|,*,?,\\,/",
-      grouping: true,
-    });
-    return;
-  }
-  ElMessageBox.confirm(
-    "确定要创建文件夹" + newfoldername.value + "?",
-    "创建文件夹"
-  ).then(() => {
-    axios
-      .post("/api/mkdir", {
-        destination: "/" + pathnow.join("/") + "/" + newfoldername.value,
-      })
-      .then(() => {
-        dirArray.push({
-          dirname: newfoldername.value,
-          id: nanoid(),
-          selected: false,
-        });
-        success(`创建文件夹${newfoldername.value}成功`);
-        // 最后重新点击“取消键”
-        mkdircancel();
-      });
-  });
-}
+
 // 点击进入子目录
 function jumpindir(dirname) {
   // 点击文件夹进入子路径
   pathnow.push(dirname);
-  fileRender("/" + pathnow.join("/"));
+  fileRender(pathString.value);
 }
 // 跳转搜索
 function toSearch() {
@@ -341,7 +306,7 @@ function toSearch() {
     res.data.data.file.forEach((filepath) => {
       fileArray.push({
         filename: filepath.substring(filepath.lastIndexOf("/") + 1),
-        id: nanoid(),
+        id: "@file" + pathString.value + filepath,
         path: filepath.substring(0, filepath.lastIndexOf("/")),
         selected: false,
       });
@@ -349,7 +314,7 @@ function toSearch() {
     res.data.data.directory.forEach((filepath) => {
       dirArray.push({
         dirname: filepath.substring(filepath.lastIndexOf("/") + 1),
-        id: nanoid(),
+        id: "@folder" + pathString.value + filepath,
         path: filepath.substring(0, filepath("/")),
         selected: false,
       });
@@ -370,7 +335,7 @@ function downloadSelected() {
       download_array.push(
         searchMode.value
           ? folder.path + "/" + folder.dirname
-          : pathnow.join("/") + "/" + folder.dirname
+          : pathString.value + "/" + folder.dirname
       );
     });
     fileArray.forEach((file, i) => {
@@ -412,7 +377,7 @@ function toUpload() {
 function uploadFile() {
   if (!uploadinput.value.files[0]) return;
   let fd = new FormData();
-  fd.append("destination", "/" + pathnow.join("/"));
+  fd.append("destination", pathString.value);
   fd.append("getFile", uploadinput.value.files[0]);
   let uploadProgress = {
     percentState: 0,
@@ -431,9 +396,18 @@ function uploadFile() {
     uploadinput.value.value = "";
     console.log(res.data.msg);
     // 上传后重新渲染页面
-    fileRender("/" + pathnow.join("/"));
+    fileRender(pathString.value);
   });
 }
+
+function afterCreateFolder(newfoldername) {
+  dirArray.push({
+    dirname: newfoldername,
+    id: "@folder" + pathString.value + newfoldername,
+    selected: false,
+  });
+}
+
 // 删除文件和文件夹
 function deleteFilesAndFolders() {
   if (!hasSelect()) return;
@@ -444,14 +418,14 @@ function deleteFilesAndFolders() {
       axios
         .get(
           "/api/deleteFile?destination=" +
-            (searchMode.value ? dir.path : "/" + pathnow.join("/")) +
+            (searchMode.value ? dir.path : pathString.value) +
             "/" +
             encodeURIComponent(dir.dirname)
         )
         .then((res) => {
           success(`删除成功`);
           console.log(res.data.msg, " @ ", dir.dirname);
-          fileRender("/" + pathnow.join("/"));
+          fileRender(pathString.value);
         });
     });
     fileArray.forEach((file) => {
@@ -459,14 +433,14 @@ function deleteFilesAndFolders() {
       axios
         .get(
           "/api/deleteFile?destination=" +
-            (searchMode.value ? file.path : "/" + pathnow.join("/")) +
+            (searchMode.value ? file.path : pathString.value) +
             "/" +
             encodeURIComponent(file.filename)
         )
         .then((res) => {
           console.log(res.data.msg, " @ ", file.filename);
           // fileArray.splice(index, 1);
-          fileRender("/" + pathnow.join("/"));
+          fileRender(pathString.value);
         });
     });
   });
@@ -489,7 +463,7 @@ onMounted(() => {
     pathnow.push(path);
   }
   while (pathnow[0] === "") pathnow.shift();
-  let path = "/" + pathnow.join("/");
+  let path = pathString.value;
 
   fileRender(path);
   window.onresize = () => {
@@ -503,7 +477,7 @@ onMounted(() => {
 });
 </script>
 
-<style scoped>
+<style>
 /* 外套 */
 .netdisk_wrap {
   float: left;
@@ -548,10 +522,10 @@ onMounted(() => {
   height: 30px;
   vertical-align: top;
   min-width: 340px;
+  display: flex;
 }
 
 .search_btn {
-  display: inline-block;
   font-size: 18px;
   font-weight: 600;
   line-height: 30px;
@@ -560,22 +534,14 @@ onMounted(() => {
   transform: translateX(-8px);
 }
 
-.search_input {
-  border: 0;
-  outline: 0;
-  height: 30px;
-  width: 200px;
-  padding-left: 15px;
-  line-height: 30px;
-  font-size: 12px;
-  background-color: transparent;
-  margin-right: 35px;
-  vertical-align: top;
+.el-button:nth-last-child(2) {
+  margin-right: 12px;
 }
 
-.searchList {
+.search_input {
+  margin-left: auto;
   margin-right: 40px;
-  float: right;
+  flex-shrink: 0.5;
   border-radius: 15px;
   background: #f1f2f4;
   width: 180px;
@@ -601,26 +567,5 @@ onMounted(() => {
   white-space: nowrap;
   /*文本超出部分省略*/
   text-overflow: ellipsis;
-}
-
-/* 新建文件夹 */
-.mkdirbox {
-  margin-left: 16px;
-  padding-left: 14px;
-  height: 40px;
-  line-height: 40px;
-  border-bottom: #000 1px solid;
-  vertical-align: top;
-}
-
-.mkdirbox img {
-  margin: 8px 20px;
-  vertical-align: top;
-}
-
-.mkdirbox a {
-  width: 16px;
-  margin-left: 10px;
-  border: 1px solid #000;
 }
 </style>

@@ -14,7 +14,7 @@
         <ChatMsg
           :data="i"
           v-for="i in msg"
-          :key="nanoid() + encodeURIComponent(i.content) + i.time"
+          :key="'@msg' + encodeURIComponent(i.content) + i.time"
         />
       </el-scrollbar>
     </div>
